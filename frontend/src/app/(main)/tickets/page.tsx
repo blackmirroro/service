@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Ticket = {
   id: number;
@@ -46,20 +46,9 @@ type Worklog = {
   ended_at?: string | null;
 };
 
-const tabs = [
-  { key: "all", label: "Todos" },
-  { key: "open", label: "Abiertos" },
-  { key: "in_progress", label: "En Progreso" },
-  { key: "paused", label: "Pausados" },
-  { key: "closed", label: "Resueltos" }
-] as const;
-
 export default function TicketsPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
-
-  // Filtro por estado (tabs)
-  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["key"]>("all");
 
   // Listado de tickets
   const tickets = useQuery({
@@ -97,7 +86,20 @@ export default function TicketsPage() {
     }
   });
 
-  // Acciones
+  // Crear ticket rápido
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+
+  const createTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title) return;
+    await api.post("/tickets", { title, description: desc });
+    setTitle("");
+    setDesc("");
+    await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+  };
+
+  // Asignación inline en la lista
   const assign = async (ticketId: number, assigneeId: number | "") => {
     if (assigneeId === "") return;
     await api.patch(`/tickets/${ticketId}`, { assignee_id: assigneeId });
@@ -148,42 +150,23 @@ export default function TicketsPage() {
   const companyOf = (cid: number) => companies.data?.find((c) => c.id === cid);
 
   // Helpers UI
-  const Badge = ({
-    children,
-    color = "slate"
-  }: {
-    children: any;
-    color?: "slate" | "green" | "yellow" | "red" | "blue" | "purple";
-  }) => {
+  const Badge = ({ children, color = "slate" }: { children: any; color?: "slate" | "green" | "yellow" | "red" | "blue" }) => {
     const map: Record<string, string> = {
       slate: "bg-slate-100 text-slate-700",
       green: "bg-green-100 text-green-700",
       yellow: "bg-yellow-100 text-yellow-800",
       red: "bg-red-100 text-red-700",
-      blue: "bg-blue-100 text-blue-700",
-      purple: "bg-purple-100 text-purple-700"
+      blue: "bg-blue-100 text-blue-700"
     };
-    return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[color]}`}>
-        {children}
-      </span>
-    );
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[color]}`}>{children}</span>;
   };
 
-  const statusBadgeColor = (s: string): "blue" | "yellow" | "green" | "red" | "slate" | "purple" => {
+  const statusBadgeColor = (s: string): "blue" | "yellow" | "green" | "red" | "slate" => {
     if (s === "open") return "blue";
     if (s === "in_progress") return "yellow";
     if (s === "closed") return "green";
-    if (s === "paused") return "purple";
     return "slate";
   };
-
-  // Filtro de tickets por tab
-  const filteredTickets = useMemo(() => {
-    const list = tickets.data || [];
-    if (activeTab === "all") return list;
-    return list.filter((t) => t.status === activeTab);
-  }, [tickets.data, activeTab]);
 
   // Cálculo de tiempo total (worklogs terminados + activo en tiempo real)
   const [nowTick, setNowTick] = useState<number>(Date.now());
@@ -219,7 +202,10 @@ export default function TicketsPage() {
     try {
       await api.post(`/tickets/${selectedId}/worklogs/start`);
       await queryClient.invalidateQueries({ queryKey: ["worklogs", selectedId] });
-    } catch {}
+    } catch (e: any) {
+      // si 409, ya hay un worklog activo en otro ticket
+      // opcional: mostrar notificación
+    }
   };
 
   const stopWork = async () => {
@@ -227,7 +213,9 @@ export default function TicketsPage() {
     try {
       await api.post(`/tickets/${selectedId}/worklogs/stop`);
       await queryClient.invalidateQueries({ queryKey: ["worklogs", selectedId] });
-    } catch {}
+    } catch (e: any) {
+      // opcional: notificación
+    }
   };
 
   // Comentarios: envío
@@ -243,155 +231,93 @@ export default function TicketsPage() {
     await queryClient.invalidateQueries({ queryKey: ["comments", selectedId] });
   };
 
-  const excerpt = (text?: string | null, len = 160) => {
-    if (!text) return "";
-    const t = text.replace(/\s+/g, " ").trim();
-    return t.length > len ? `${t.slice(0, len)}…` : t;
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Tickets</h1>
-          <div className="text-sm text-slate-600">Gestiona los tickets de soporte</div>
-        </div>
-        <button className="btn" onClick={() => router.push("/tickets/create")}>
-          <Plus size={16} />
-          Nuevo Ticket
-        </button>
+        <h1 className="text-xl font-semibold">Tickets</h1>
       </div>
 
-      {/* Tabs de estados */}
-      <div className="card p-3">
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
-                activeTab === t.key
-                  ? "bg-brand-600 text-white border-brand-600"
-                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <div className="card p-4">
+        <form onSubmit={createTicket} className="grid md:grid-cols-3 gap-3">
+          <input
+            className="input"
+            placeholder="Título del ticket"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Descripción (opcional)"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+          <button className="btn">
+            <Plus size={16} />
+            Crear
+          </button>
+        </form>
       </div>
 
-      {/* Lista de tickets */}
       <div className="card divide-y">
         <div className="px-4 py-3 text-sm text-slate-500">Listado de tickets</div>
         <div>
           {tickets.isLoading && <div className="p-4">Cargando...</div>}
-          {!tickets.isLoading && filteredTickets.length === 0 && (
+          {!tickets.isLoading && (!tickets.data || tickets.data.length === 0) && (
             <div className="p-4">Sin tickets</div>
           )}
           {!tickets.isLoading &&
-            filteredTickets.map((t) => {
-              const requester = requesterOf(t.requester_id);
-              const company = companyOf(t.company_id);
-              return (
-                <div key={t.id} className="px-4 py-4 hover:bg-slate-50">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    {/* Left: title + desc + meta */}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-3">
-                        <div className="font-semibold text-slate-900 truncate">{t.title}</div>
-                        <div className="hidden md:block">
-                          <Badge color={statusBadgeColor(t.status)}>
-                            {t.status === "open"
-                              ? "Abierto"
-                              : t.status === "in_progress"
-                              ? "En Progreso"
-                              : t.status === "paused"
-                              ? "Pausado"
-                              : "Resuelto"}
-                          </Badge>
-                        </div>
-                        <div className="hidden md:block">
-                          <Badge
-                            color={
-                              t.priority === "urgent"
-                                ? "red"
-                                : t.priority === "high"
-                                ? "yellow"
-                                : t.priority === "low"
-                                ? "slate"
-                                : "blue"
-                            }
-                          >
-                            {t.priority}
-                          </Badge>
-                        </div>
-                      </div>
-                      {t.description && (
-                        <div className="text-sm text-slate-600 mt-1 line-clamp-2">
-                          {excerpt(t.description)}
-                        </div>
-                      )}
-                      <div className="mt-2 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
-                        <span>Creado: {new Date(t.created_at).toLocaleString()}</span>
-                        <span>Empresa: {company?.name ?? t.company_id}</span>
-                        <span>Contacto: {requester?.email ?? "—"}</span>
-                        <span>Actualizado: {new Date(t.updated_at).toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Right: acciones y asignación */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="md:hidden">
-                        <Badge color={statusBadgeColor(t.status)}>
-                          {t.status === "open"
-                            ? "Abierto"
-                            : t.status === "in_progress"
-                            ? "En Progreso"
-                            : t.status === "paused"
-                            ? "Pausado"
-                            : "Resuelto"}
-                        </Badge>
-                      </div>
-                      <select
-                        className="input text-sm"
-                        value={t.assignee_id ?? ""}
-                        onChange={(e) => assign(t.id, e.target.value ? Number(e.target.value) : "")}
-                        disabled={users.isLoading}
-                      >
-                        <option value="">Sin asignar</option>
-                        {users.data?.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.full_name || u.email}
-                          </option>
-                        ))}
-                      </select>
-                      <button className="btn-secondary text-sm" onClick={() => setSelectedId(t.id)}>
-                        Ver detalles
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (confirm("¿Eliminar este ticket?")) {
-                            try {
-                              await api.delete(`/tickets/${t.id}`);
-                              await queryClient.invalidateQueries({ queryKey: ["tickets"] });
-                            } catch {}
-                          }
-                        }}
-                        className="inline-flex items-center rounded-md bg-red-600 text-white px-3 py-2 text-sm hover:bg-red-700"
-                        title="Eliminar"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
+            tickets.data?.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between px-4 py-3 hover:bg-slate-50"
+              >
+                <div className="flex-1">
+                  <div className="font-medium">{t.title}</div>
+                  <div className="text-xs text-slate-500">
+                    {t.status} · {t.priority} · {new Date(t.created_at).toLocaleString()}
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-2">
+                  {/* Asignación de técnico */}
+                  <select
+                    className="input text-sm"
+                    value={t.assignee_id ?? ""}
+                    onChange={(e) => assign(t.id, e.target.value ? Number(e.target.value) : "")}
+                    disabled={users.isLoading}
+                  >
+                    <option value="">Sin asignar</option>
+                    {users.data?.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name || u.email}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={() => setSelectedId(t.id)} className="text-sm text-brand-700">
+                    Ver
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirm("¿Eliminar este ticket?")) {
+                        try {
+                          await api.delete(`/tickets/${t.id}`);
+                          await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+                        } catch {
+                          // opcional: notificación
+                        }
+                      }
+                    }}
+                    className="text-sm text-red-600"
+                    title="Eliminar"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
         </div>
       </div>
 
-      {/* Modal de detalle */}
+      {/* Modal de detalle, idéntico a la captura */}
       {selectedId && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
@@ -424,25 +350,25 @@ export default function TicketsPage() {
                           ? "Abierto"
                           : selectedTicket.data.status === "in_progress"
                           ? "En Progreso"
-                          : selectedTicket.data.status === "paused"
-                          ? "Pausado"
                           : "Resuelto"}
                       </Badge>
                     </div>
                     <div className="space-y-1">
                       <div className="text-xs text-slate-500">Prioridad</div>
-                      <Badge
-                        color={
-                          selectedTicket.data.priority === "urgent"
-                            ? "red"
-                            : selectedTicket.data.priority === "high"
-                            ? "yellow"
-                            : selectedTicket.data.priority === "low"
-                            ? "slate"
-                            : "blue"
-                        }
-                      >
-                        {selectedTicket.data.priority}
+                      <Badge color={
+                        selectedTicket.data.priority === "urgent"
+                          ? "red"
+                          : selectedTicket.data.priority === "high"
+                          ? "yellow"
+                          : "slate"
+                      }>
+                        {selectedTicket.data.priority === "urgent"
+                          ? "Urgente"
+                          : selectedTicket.data.priority === "high"
+                          ? "Alta"
+                          : selectedTicket.data.priority === "normal"
+                          ? "Media"
+                          : "Baja"}
                       </Badge>
                     </div>
                     <div>
@@ -528,8 +454,6 @@ export default function TicketsPage() {
                           ? "Abierto"
                           : selectedTicket.data.status === "in_progress"
                           ? "En Progreso"
-                          : selectedTicket.data.status === "paused"
-                          ? "Pausado"
                           : "Resuelto"}
                       </Badge>
                     </div>
