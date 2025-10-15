@@ -83,9 +83,30 @@ export default function EmailConfigPage() {
   const cfg = useQuery({
     queryKey: ["email-config"],
     queryFn: async () => {
-      const { data } = await api.get<EmailConfigOut>("/system/email-config");
+      const { data } = await api.get<EmailConfigOut>("/system/email-config/");
       return data;
     },
+  });
+
+  // Plantillas
+  type Templates = { templates: Record<string, { subject: string; body: string }> };
+  const tpls = useQuery({
+    queryKey: ["email-templates"],
+    queryFn: async () => {
+      const { data } = await api.get<Templates>("/system/email/templates/");
+      return data;
+    }
+  });
+  const [tplForm, setTplForm] = useState<Templates["templates"]>({});
+  const saveTpls = useMutation({
+    mutationFn: async (payload: Templates) => {
+      const { data } = await api.put<Templates>("/system/email/templates/", payload);
+      return data;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["email-templates"] });
+      alert("Plantillas guardadas");
+    }
   });
 
   const save = useMutation({
@@ -418,6 +439,50 @@ export default function EmailConfigPage() {
         />
       </div>
 
+      {/* Plantillas de correo */}
+      <div className="card p-5 space-y-5 max-w-3xl">
+        <div>
+          <div className="text-lg font-semibold">Plantillas de correo</div>
+          <div className="text-sm text-slate-600">Usa variables como {"{{ticket_id}}"}, {"{{ticket_title}}"}, {"{{comment_body}}"}, {"{{requester_name}}"}, {"{{assignee_name}}"}</div>
+        </div>
+
+        {tpls.isLoading ? (
+          <div className="text-sm text-slate-500">Cargando plantillas...</div>
+        ) : (
+          <>
+            {(() => {
+              if (Object.keys(tplForm).length === 0 && tpls.data?.templates) {
+                setTplForm(tpls.data.templates);
+              }
+              return null;
+            })()}
+            <div className="grid gap-4">
+              <TemplateEditor
+                title="Comentario al usuario"
+                description="Se envía al usuario cuando el staff añade un comentario público."
+                tpl={tplForm["comment_user"] || { subject: "", body: "" }}
+                onChange={(k, v) => setTplForm((prev) => ({ ...prev, comment_user: { ...(prev["comment_user"] || {}), [k]: v } }))}
+              />
+              <TemplateEditor
+                title="Comentario al técnico"
+                description="Se envía al técnico asignado cuando el usuario añade un comentario."
+                tpl={tplForm["comment_tech"] || { subject: "", body: "" }}
+                onChange={(k, v) => setTplForm((prev) => ({ ...prev, comment_tech: { ...(prev["comment_tech"] || {}), [k]: v } }))}
+              />
+            </div>
+            <div className="flex items-center justify-end">
+              <button
+                className="btn"
+                onClick={() => saveTpls.mutate({ templates: tplForm })}
+                disabled={saveTpls.isPending}
+              >
+                {saveTpls.isPending ? "Guardando..." : "Guardar plantillas"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="text-xs text-slate-500">
         Notas:
         <ul className="list-disc ml-5 space-y-1 mt-2">
@@ -551,6 +616,33 @@ function EmailCredentialsPanel({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function TemplateEditor({
+  title,
+  description,
+  tpl,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  tpl: { subject: string; body: string };
+  onChange: (field: "subject" | "body", value: string) => void;
+}) {
+  return (
+    <div className="rounded-md border p-4 space-y-3">
+      <div className="font-medium">{title}</div>
+      <div className="text-xs text-slate-500">{description}</div>
+      <label className="flex flex-col gap-1">
+        <span className="text-sm text-slate-600">Asunto</span>
+        <input className="input" value={tpl.subject} onChange={(e) => onChange("subject", e.target.value)} />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-sm text-slate-600">Cuerpo (texto plano)</span>
+        <textarea className="input min-h-[120px]" value={tpl.body} onChange={(e) => onChange("body", e.target.value)} />
+      </label>
     </div>
   );
 }

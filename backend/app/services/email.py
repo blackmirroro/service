@@ -135,3 +135,56 @@ def send_email(to_email: str, subject: str, body: str, db: Optional[Session] = N
         except Exception:
             pass
         return False
+
+
+# --- Simple templating support ---
+
+DEFAULT_TEMPLATES: Dict[str, Dict[str, str]] = {
+    "comment_user": {
+        "subject": "Nueva actividad en tu ticket #{{ticket_id}}",
+        "body": (
+            "Hola {{requester_name}},\n\n"
+            "Hay un nuevo comentario en tu ticket #{{ticket_id}} - {{ticket_title}}.\n\n"
+            "Comentario:\n{{comment_body}}\n\n"
+            "--\nServiceFlow"
+        ),
+    },
+    "comment_tech": {
+        "subject": "Nuevo comentario del usuario en el ticket #{{ticket_id}}",
+        "body": (
+            "Hola {{assignee_name}},\n\n"
+            "El usuario ha añadido un comentario en el ticket #{{ticket_id}} - {{ticket_title}}.\n\n"
+            "Comentario:\n{{comment_body}}\n\n"
+            "--\nServiceFlow"
+        ),
+    },
+}
+
+
+def render_template(text: str, vars: Dict[str, Any]) -> str:
+    out = text
+    for k, v in vars.items():
+        out = out.replace(f"{{{{{k}}}}}", str(v) if v is not None else "")
+    return out
+
+
+def load_templates(db: Optional[Session]) -> Dict[str, Dict[str, str]]:
+    cfg = _get_config_from_db(db)
+    def _get_pair(prefix: str) -> Dict[str, str]:
+        subj = cfg.get(f"email.tpl.{prefix}.subject") or DEFAULT_TEMPLATES[prefix]["subject"]
+        body = cfg.get(f"email.tpl.{prefix}.body") or DEFAULT_TEMPLATES[prefix]["body"]
+        return {"subject": subj, "body": body}
+    return {
+        "comment_user": _get_pair("comment_user"),
+        "comment_tech": _get_pair("comment_tech"),
+    }
+
+
+def send_templated(to_email: str, template_key: str, variables: Dict[str, Any], db: Optional[Session] = None) -> bool:
+    tpls = load_templates(db)
+    tpl = tpls.get(template_key)
+    if not tpl:
+        return False
+    subject = render_template(tpl["subject"], variables)
+    body = render_template(tpl["body"], variables)
+    return send_email(to_email, subject, body, db)

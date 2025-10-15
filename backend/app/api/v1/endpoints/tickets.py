@@ -18,7 +18,7 @@ from app.schemas.ticket import (
     WorklogOut,
 )
 from app.services.storage import StorageService
-from app.services.email import send_email
+from app.services.email import send_email, send_templated
 
 router = APIRouter()
 
@@ -293,19 +293,23 @@ def add_comment(
     db.commit()
     db.refresh(c)
 
-    # Notifications email
+    # Notifications email (templated)
     try:
-        subject = f"Nueva actividad en tu ticket #{t.id}"
+        vars = {
+            "ticket_id": t.id,
+            "ticket_title": t.title,
+            "comment_body": payload.body,
+            "requester_name": getattr(t.requester, "full_name", None) or getattr(t.requester, "email", "") if t.requester else "",
+            "assignee_name": getattr(t.assignee, "full_name", None) or getattr(t.assignee, "email", "") if t.assignee else "",
+        }
         # Staff -> user (only if public)
         if role in {"superadmin", "admin", "tech"} and is_public and t.requester and t.requester.email:
             to_email = t.requester.email
-            body = f"Hola,\n\nHay un nuevo comentario en tu ticket #{t.id} - {t.title}.\n\nComentario:\n{payload.body}\n\n--\nServiceFlow"
-            background_tasks.add_task(send_email, to_email, subject, body, db)
+            background_tasks.add_task(send_templated, to_email, "comment_user", vars, db)
         # User -> technician (if assigned)
         if role == "user" and t.assignee and t.assignee.email:
             to_email = t.assignee.email
-            body = f"Hola,\n\nEl usuario ha añadido un comentario en el ticket #{t.id} - {t.title}.\n\nComentario:\n{payload.body}\n\n--\nServiceFlow"
-            background_tasks.add_task(send_email, to_email, subject, body, db)
+            background_tasks.add_task(send_templated, to_email, "comment_tech", vars, db)
     except Exception:
         # Nunca romper la API por el envío de email
         pass
