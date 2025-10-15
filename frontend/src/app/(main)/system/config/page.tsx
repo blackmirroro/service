@@ -28,6 +28,47 @@ type EmailConfigIn = {
 export default function EmailConfigPage() {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
+
+  // Apariencia y Personalización
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const v = localStorage.getItem("sf_dark_mode");
+    return v === "1";
+  });
+  const [theme, setTheme] = useState<string>(() => {
+    if (typeof window === "undefined") return "apple-blue";
+    return localStorage.getItem("sf_theme") || "apple-blue";
+  });
+
+  const applyDark = (v: boolean) => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    if (v) {
+      html.classList.add("dark");
+      localStorage.setItem("sf_dark_mode", "1");
+    } else {
+      html.classList.remove("dark");
+      localStorage.setItem("sf_dark_mode", "0");
+    }
+  };
+
+  const applyTheme = (t: string) => {
+    setTheme(t);
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", t);
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sf_theme", t);
+    }
+  };
+
+  // cargar estado inicial en el DOM
+  if (typeof document !== "undefined") {
+    const html = document.documentElement;
+    if (darkMode) html.classList.add("dark");
+    html.setAttribute("data-theme", theme);
+  }
+
   const cfg = useQuery({
     queryKey: ["email-config"],
     queryFn: async () => {
@@ -124,9 +165,108 @@ export default function EmailConfigPage() {
     }
   };
 
+  const themes = [
+    {
+      id: "apple-blue",
+      name: "Azul Profesional",
+      desc: "Tema azul elegante estilo Apple con colores sólidos y acabados premium",
+      preview: "bg-gradient-to-r from-[#1e3a8a] to-[#334155]",
+    },
+    {
+      id: "dark-pro",
+      name: "Oscuro Profesional",
+      desc: "Tema oscuro premium con acabados elegantes y acentos azules sofisticados",
+      preview: "bg-gradient-to-r from-[#0b1020] to-[#0f172a]",
+    },
+    {
+      id: "apple-light",
+      name: "Apple Claro",
+      desc: "Tema claro minimalista inspirado en el diseño de Apple",
+      preview: "bg-gradient-to-r from-[#e2e8f0] to-[#cbd5e1]",
+    },
+    {
+      id: "apple-dark",
+      name: "Apple Oscuro",
+      desc: "Tema oscuro elegante con acentos morados estilo Apple",
+      preview: "bg-gradient-to-r from-[#1e1b4b] to-[#3730a3]",
+    },
+    {
+      id: "red-vivid",
+      name: "Rojo Vibrante",
+      desc: "Tema rojo vibrante con degradado dinámico y acentos grises azulados",
+      preview: "bg-gradient-to-r from-[#ef4444] to-[#fb7185]",
+    },
+    {
+      id: "green-fresh",
+      name: "Verde Fresco",
+      desc: "Tema verde vibrante con degradado dinámico y acentos naturales",
+      preview: "bg-gradient-to-r from-[#10b981] to-[#22c55e]",
+    },
+  ] as const;
+
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Configuración de Email</h1>
+      <h1 className="text-xl font-semibold">Configuración de la aplicación</h1>
+
+      {/* Apariencia y Personalización */}
+      <div className="card p-5 space-y-6">
+        <div>
+          <div className="text-lg font-semibold">Apariencia y Personalización</div>
+          <div className="text-sm text-slate-600">Personaliza cómo se ve la aplicación</div>
+        </div>
+
+        {/* Modo oscuro */}
+        <div className="flex items-center justify-between rounded-md border p-4">
+          <div>
+            <div className="font-medium">Modo oscuro</div>
+            <div className="text-sm text-slate-500">{darkMode ? "Interfaz con tema oscuro activado" : "Interfaz con tema claro activado"}</div>
+          </div>
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={darkMode}
+              onChange={(e) => {
+                setDarkMode(e.target.checked);
+                applyDark(e.target.checked);
+              }}
+            />
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-brand-600 relative transition-colors">
+              <div className={`absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform ${darkMode ? "translate-x-5" : ""}`} />
+            </div>
+          </label>
+        </div>
+
+        {/* Temas personalizados */}
+        <div className="space-y-2">
+          <div className="font-medium">Temas personalizados</div>
+          <div className="text-sm text-slate-500">Selecciona un tema con colores y estilos estilo Apple para personalizar toda la aplicación.</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            {themes.map((tdef) => {
+              const active = theme === tdef.id;
+              return (
+                <button
+                  key={tdef.id}
+                  type="button"
+                  onClick={() => applyTheme(tdef.id)}
+                  className={`text-left rounded-md border p-3 hover:bg-slate-50 transition ${active ? "ring-2 ring-brand-600 border-brand-300" : ""}`}
+                >
+                  <div className={`h-10 rounded ${tdef.preview} mb-3`} />
+                  <div className="font-medium text-[15px]">{tdef.name}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">{tdef.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2">
+          <div className="text-sm text-slate-500">Efectos visuales</div>
+          <button className="btn-secondary">Configurar efectos</button>
+        </div>
+      </div>
+
+      <h2 className="text-lg font-semibold">Configuración de Email</h2>
 
       <form onSubmit={onSubmit} className="card p-4 space-y-4 max-w-2xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
