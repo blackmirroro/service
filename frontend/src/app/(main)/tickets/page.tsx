@@ -308,189 +308,146 @@ export default function TicketsPage() {
         </button>
       </div>
 
-      {/* Filtros */}
-      <div className="card p-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <div>
-            <label className="text-xs text-slate-600">Empresa</label>
-            <select
-              className="input mt-1"
-              value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
-            >
-              <option value="">Todas las empresas</option>
-              {companies.data?.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-slate-600">Estado</label>
-            <select
-              className="input mt-1"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              {statusOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-slate-600">Prioridad</label>
-            <select
-              className="input mt-1"
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-            >
-              {priorityOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-slate-600">Buscar</label>
-            <input
-              className="input mt-1"
-              placeholder="Título o descripción"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+      {/* Filtro por empresa (full width) */}
+      <div>
+        <label className="text-sm text-slate-700">Filtrar por empresa</label>
+        <select
+          className="input mt-1 w-full"
+          value={companyFilter}
+          onChange={(e) => setCompanyFilter(e.target.value)}
+        >
+          <option value="">Todas las empresas</option>
+          {companies.data?.map((c) => (
+            <option key={c.id} value={String(c.id)}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Crear rápido */}
-      <div className="card p-4">
-        <form onSubmit={createTicket} className="grid md:grid-cols-3 gap-3">
-          <input
-            className="input"
-            placeholder="Título del ticket"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <input
-            className="input"
-            placeholder="Descripción (opcional)"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-          />
-          <button className="btn">
-            <Plus size={16} />
-            Crear
+      {/* Tabs de estado */}
+      <div className="flex flex-wrap gap-2">
+        {statusOptions.map((o) => (
+          <button
+            key={o.value || "all"}
+            onClick={() => setStatusFilter(o.value)}
+            className={`px-3 py-1.5 rounded-md text-sm border transition-colors ${
+              statusFilter === o.value
+                ? "bg-brand-600 text-white border-brand-600"
+                : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+            }`}
+          >
+            {o.label}
           </button>
-        </form>
+        ))}
       </div>
 
-      {/* Tabla de tickets */}
-      <div className="card overflow-x-auto">
-        {tickets.isLoading ? (
-          <div className="p-4">Cargando...</div>
-        ) : (tickets.data?.length || 0) === 0 ? (
-          <div className="p-4">Sin tickets</div>
-        ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">Título</th>
-                <th className="text-left px-4 py-3 font-medium">Estado</th>
-                <th className="text-left px-4 py-3 font-medium">Prioridad</th>
-                <th className="text-left px-4 py-3 font-medium">Empresa</th>
-                <th className="text-left px-4 py-3 font-medium">Asignado</th>
-                <th className="text-left px-4 py-3 font-medium">Creado</th>
-                <th className="text-left px-4 py-3 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {tickets.data?.map((t) => {
-                const company = companyOf(t.company_id);
-                return (
-                  <tr key={t.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{t.title}</div>
-                      {t.description && (
-                        <div className="text-slate-600 text-xs">{excerpt(t.description)}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge color={statusBadgeColor(t.status)}>
-                        {t.status === "open"
-                          ? "Abierto"
-                          : t.status === "in_progress"
-                          ? "En Progreso"
-                          : t.status === "paused"
-                          ? "Pausado"
-                          : "Resuelto"}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        color={
-                          t.priority === "urgent"
-                            ? "red"
-                            : t.priority === "high"
-                            ? "yellow"
-                            : t.priority === "low"
-                            ? "slate"
-                            : "blue"
-                        }
-                      >
-                        {t.priority}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">{company?.name ?? t.company_id}</td>
-                    <td className="px-4 py-3">
-                      <select
-                        className="input text-sm"
-                        value={t.assignee_id ?? ""}
-                        onChange={(e) => assign(t.id, e.target.value ? Number(e.target.value) : "")}
-                        disabled={users.isLoading}
-                      >
-                        <option value="">Sin asignar</option>
-                        {users.data?.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.full_name || u.email}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">{new Date(t.created_at).toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="btn-secondary text-xs"
-                          onClick={() => setSelectedId(t.id)}
-                        >
-                          Ver detalles
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (confirm("¿Eliminar este ticket?")) {
-                              try {
-                                await api.delete(`/tickets/${t.id}/`);
-                                await queryClient.invalidateQueries({ queryKey: ["tickets"] });
-                              } catch {}
-                            }
-                          }}
-                          className="inline-flex items-center rounded-md bg-red-600 text-white px-3 py-2 text-xs hover:bg-red-700"
-                          title="Eliminar"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Listado de tickets en tarjetas */}
+      <div className="space-y-4">
+        {tickets.isLoading && <div className="p-4 card">Cargando...</div>}
+        {!tickets.isLoading && ((tickets.data?.length || 0) === 0) && (
+          <div className="p-4 card">Sin tickets</div>
         )}
+        {!tickets.isLoading &&
+          tickets.data?.map((t) => {
+            const company = companyOf(t.company_id);
+            const requester = users.data?.find((u) => u.id === t.requester_id);
+            const assignee = users.data?.find((u) => u.id === (t.assignee_id ?? -1));
+            return (
+              <div key={t.id} className="card px-6 py-5 flex flex-col gap-2">
+                {/* Título */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-semibold text-slate-900">{t.title}</div>
+                  <div className="flex items-center gap-2">
+                    <Badge color={statusBadgeColor(t.status)}>
+                      {t.status === "open"
+                        ? "Abierto"
+                        : t.status === "in_progress"
+                        ? "En Progreso"
+                        : t.status === "paused"
+                        ? "Pausado"
+                        : "Resuelto"}
+                    </Badge>
+                    <Badge
+                      color={
+                        t.priority === "urgent"
+                          ? "red"
+                          : t.priority === "high"
+                          ? "yellow"
+                          : t.priority === "low"
+                          ? "slate"
+                          : "blue"
+                      }
+                    >
+                      {t.priority === "low" ? "Baja" : t.priority === "normal" ? "Media" : t.priority === "high" ? "Alta" : "Urgente"}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Descripción breve */}
+                {t.description && (
+                  <div className="text-sm text-slate-700">{excerpt(t.description, 500)}</div>
+                )}
+
+                {/* Meta inferior */}
+                <div className="mt-1 text-xs text-slate-600 flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <span>Creado {new Date(t.created_at).toLocaleString()}</span>
+                  <span>Empresa: {company?.name ?? t.company_id}</span>
+                  <span>
+                    Contacto:{" "}
+                    {requester?.email ? (
+                      <a className="text-brand-700 hover:underline" href={`mailto:${requester.email}`}>
+                        {requester.email}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    Asignado a: <span className="font-medium">{assignee?.full_name || assignee?.email || "Sin asignar"}</span>
+                    <select
+                      className="input h-7 text-xs"
+                      value={t.assignee_id ?? ""}
+                      onChange={(e) => assign(t.id, e.target.value ? Number(e.target.value) : "")}
+                      disabled={users.isLoading}
+                    >
+                      <option value="">Cambiar...</option>
+                      {users.data?.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.full_name || u.email}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                </div>
+
+                {/* Acciones derecha */}
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  <button
+                    className="btn-secondary text-sm"
+                    onClick={() => setSelectedId(t.id)}
+                    title="Ver detalles"
+                  >
+                    Ver detalles
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirm("¿Eliminar este ticket?")) {
+                        try {
+                          await api.delete(`/tickets/${t.id}/`);
+                          await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+                        } catch {}
+                      }
+                    }}
+                    className="inline-flex items-center rounded-md bg-red-600 text-white px-3 py-2 text-sm hover:bg-red-700"
+                    title="Eliminar"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            );
+          })}
       </div>
 
       {/* Modal de detalle */}
