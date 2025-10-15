@@ -35,9 +35,9 @@ export default function UsersPage() {
   const qc = useQueryClient();
 
   const users = useQuery({
-    queryKey: ["users"],
+    queryKey: ["users","only-user-role"],
     queryFn: async () => {
-      const { data } = await api.get<User[]>("/users/");
+      const { data } = await api.get<User[]>("/users/", { params: { role_filter: "user" } });
       return data;
     },
     refetchInterval: 30000
@@ -95,11 +95,6 @@ export default function UsersPage() {
           <p className="text-sm text-slate-500">Gestiona usuarios por empresa, roles y estado.</p>
         </div>
         <div className="flex items-center gap-2">
-          {canCreateTech ? (
-            <Link href="/users/create-tech" className="btn inline-flex items-center gap-2">
-              <Wrench size={16} /> Nuevo Técnico
-            </Link>
-          ) : null}
           <button className="btn inline-flex items-center gap-2" onClick={() => setShowForm({ mode: "create" })}>
             <UserPlus size={16} /> Nuevo Usuario
           </button>

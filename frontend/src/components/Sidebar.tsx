@@ -33,6 +33,7 @@ const sections = [
     title: "Administración",
     items: [
       { href: "/users", label: "Usuarios", icon: Users },
+      { href: "/techs", label: "Técnicos", icon: UserCog },
       { href: "/admins", label: "Administradores", icon: UserCog },
       { href: "/companies", label: "Empresas", icon: Building2 },
       { href: "/time", label: "Tiempo por Empresa", icon: Clock },
