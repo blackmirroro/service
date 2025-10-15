@@ -55,18 +55,18 @@ export default function MyTicketsPage() {
   const me = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
-      const { data } = await api.get<User>("/auth/me");
+      const { data } = await api.get<User>("/auth/me/");
       return data;
     }
   });
 
   const isStaff = (me.data?.role && ["tech", "admin", "superadmin"].includes(me.data.role)) || false;
 
-  // Listado de tickets (filtrado por requester_id en cliente; si backend soporta filtro, se podría pasar params)
+  // Listado de tickets
   const tickets = useQuery({
     queryKey: ["tickets"],
     queryFn: async () => {
-      const { data } = await api.get<Ticket[]>("/tickets");
+      const { data } = await api.get<Ticket[]>("/tickets/");
       return data;
     },
     enabled: !!me.data
@@ -76,7 +76,7 @@ export default function MyTicketsPage() {
   const users = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const { data } = await api.get<User[]>("/users");
+      const { data } = await api.get<User[]>("/users/");
       return data;
     }
   });
@@ -85,14 +85,15 @@ export default function MyTicketsPage() {
   const companies = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data } = await api.get<Company[]>("/companies");
+      const { data } = await api.get<Company[]>("/companies/");
       return data;
     }
   });
 
+  // Filtra tickets asignados al técnico logueado
   const myTickets = useMemo(() => {
     if (!tickets.data || !me.data) return [];
-    return tickets.data.filter((t) => t.requester_id === me.data!.id);
+    return tickets.data.filter((t) => t.assignee_id === me.data!.id);
   }, [tickets.data, me.data]);
 
   // Helpers
@@ -100,7 +101,13 @@ export default function MyTicketsPage() {
   const userOf = (id: number | null) => (id ? users.data?.find((u) => u.id === id) : undefined);
   const companyOf = (cid: number) => companies.data?.find((c) => c.id === cid);
 
-  const Badge = ({ children, color = "slate" }: { children: any; color?: "slate" | "green" | "yellow" | "red" | "blue" }) => {
+  const Badge = ({
+    children,
+    color = "slate"
+  }: {
+    children: any;
+    color?: "slate" | "green" | "yellow" | "red" | "blue";
+  }) => {
     const map: Record<string, string> = {
       slate: "bg-slate-100 text-slate-700",
       green: "bg-green-100 text-green-700",
@@ -108,7 +115,11 @@ export default function MyTicketsPage() {
       red: "bg-red-100 text-red-700",
       blue: "bg-blue-100 text-blue-700"
     };
-    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[color]}`}>{children}</span>;
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[color]}`}>
+        {children}
+      </span>
+    );
   };
 
   const statusBadgeColor = (s: string): "blue" | "yellow" | "green" | "red" | "slate" => {
@@ -124,7 +135,7 @@ export default function MyTicketsPage() {
     queryKey: ["ticket", selectedId],
     enabled: !!selectedId,
     queryFn: async () => {
-      const { data } = await api.get<Ticket>(`/tickets/${selectedId}`);
+      const { data } = await api.get<Ticket>(`/tickets/${selectedId}/`);
       return data;
     }
   });
@@ -134,7 +145,7 @@ export default function MyTicketsPage() {
     queryKey: ["comments", selectedId],
     enabled: !!selectedId,
     queryFn: async () => {
-      const { data } = await api.get<Comment[]>(`/tickets/${selectedId}/comments`);
+      const { data } = await api.get<Comment[]>(`/tickets/${selectedId}/comments/`);
       return data;
     }
   });
@@ -144,7 +155,7 @@ export default function MyTicketsPage() {
     queryKey: ["worklogs", selectedId],
     enabled: !!selectedId && isStaff,
     queryFn: async () => {
-      const { data } = await api.get<Worklog[]>(`/tickets/${selectedId}/worklogs`);
+      const { data } = await api.get<Worklog[]>(`/tickets/${selectedId}/worklogs/`);
       return data;
     }
   });
@@ -153,7 +164,7 @@ export default function MyTicketsPage() {
 
   const desasignar = async (id: number) => {
     if (!isStaff) return;
-    await api.patch(`/tickets/${id}`, { assignee_id: null });
+    await api.patch(`/tickets/${id}/`, { assignee_id: null });
     await queryClient.invalidateQueries({ queryKey: ["tickets"] });
     await queryClient.invalidateQueries({ queryKey: ["ticket", id] });
   };
@@ -191,7 +202,7 @@ export default function MyTicketsPage() {
   const startWork = async () => {
     if (!selectedId || !isStaff) return;
     try {
-      await api.post(`/tickets/${selectedId}/worklogs/start`);
+      await api.post(`/tickets/${selectedId}/worklogs/start/`);
       await queryClient.invalidateQueries({ queryKey: ["worklogs", selectedId] });
     } catch {}
   };
@@ -199,7 +210,7 @@ export default function MyTicketsPage() {
   const stopWork = async () => {
     if (!selectedId || !isStaff) return;
     try {
-      await api.post(`/tickets/${selectedId}/worklogs/stop`);
+      await api.post(`/tickets/${selectedId}/worklogs/stop/`);
       await queryClient.invalidateQueries({ queryKey: ["worklogs", selectedId] });
     } catch {}
   };
@@ -209,7 +220,7 @@ export default function MyTicketsPage() {
   const [commentPublic, setCommentPublic] = useState(true);
   const submitComment = async () => {
     if (!selectedId || !commentBody.trim()) return;
-    await api.post(`/tickets/${selectedId}/comments`, {
+    await api.post(`/tickets/${selectedId}/comments/`, {
       body: commentBody.trim(),
       is_public: commentPublic
     });
@@ -228,28 +239,56 @@ export default function MyTicketsPage() {
       </div>
 
       <div className="card divide-y">
-        <div className="px-4 py-3 text-sm text-slate-500">Listado de mis tickets</div>
+        <div className="px-4 py-3 text-sm text-slate-500">Listado de tickets asignados a mí</div>
         <div>
           {(tickets.isLoading || me.isLoading) && <div className="p-4">Cargando...</div>}
           {!tickets.isLoading && !me.isLoading && myTickets.length === 0 && (
-            <div className="p-4">No tienes tickets aún.</div>
+            <div className="p-4">No tienes tickets asignados.</div>
           )}
           {!tickets.isLoading &&
             !me.isLoading &&
             myTickets.map((t) => (
-              <div key={t.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50">
-                <div className="flex-1">
-                  <div className="font-medium">{t.title}</div>
-                  <div className="text-xs text-slate-500">
-                    {t.status} · {t.priority} · {new Date(t.created_at).toLocaleString()}
+              <div key={t.id} className="flex items-center justify-between px-4 py-4 hover:bg-slate-50">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-slate-900">{t.title}</div>
+                  {t.description && (
+                    <div className="text-sm text-slate-600 line-clamp-2">{t.description}</div>
+                  )}
+                  <div className="mt-1 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>
+                      Estado:{" "}
+                      <Badge color={statusBadgeColor(t.status)}>
+                        {t.status === "open"
+                          ? "Abierto"
+                          : t.status === "in_progress"
+                          ? "En Progreso"
+                          : "Resuelto"}
+                      </Badge>
+                    </span>
+                    <span>Creado: {new Date(t.created_at).toLocaleString()}</span>
+                    <span>Usuario: {requesterOf(t.requester_id)?.full_name || requesterOf(t.requester_id)?.email}</span>
+                    <span>
+                      Técnico: {userOf(t.assignee_id)?.full_name || userOf(t.assignee_id)?.email || "Sin asignar"}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-xs text-slate-600">
-                    Técnico: {userOf(t.assignee_id)?.full_name || userOf(t.assignee_id)?.email || "Sin asignar"}
-                  </div>
-                  <button onClick={() => setSelectedId(t.id)} className="text-sm text-brand-700">
-                    Ver
+                <div className="flex items-center gap-2 shrink-0">
+                  <button className="btn-secondary text-sm" onClick={() => setSelectedId(t.id)}>
+                    Ver detalles
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirm("¿Eliminar este ticket?")) {
+                        try {
+                          await api.delete(`/tickets/${t.id}/`);
+                          await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+                        } catch {}
+                      }
+                    }}
+                    className="inline-flex items-center rounded-md bg-red-600 text-white px-3 py-2 text-sm hover:bg-red-700"
+                    title="Eliminar"
+                  >
+                    Eliminar
                   </button>
                 </div>
               </div>
@@ -350,7 +389,7 @@ export default function MyTicketsPage() {
                             value={selectedTicket.data.assignee_id ?? ""}
                             onChange={async (e) => {
                               const v = e.target.value ? Number(e.target.value) : null;
-                              await api.patch(`/tickets/${selectedId}`, { assignee_id: v });
+                              await api.patch(`/tickets/${selectedId}/`, { assignee_id: v });
                               await queryClient.invalidateQueries({ queryKey: ["tickets"] });
                               await queryClient.invalidateQueries({ queryKey: ["ticket", selectedId] });
                             }}
@@ -412,24 +451,6 @@ export default function MyTicketsPage() {
                             Iniciar Trabajo
                           </button>
                         )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="btn"
-                          onClick={() => {
-                            const url = process.env.NEXT_PUBLIC_REMOTE_SUPPORT_URL || "#";
-                            if (url === "#") return;
-                            window.open(url, "_blank");
-                          }}
-                        >
-                          Soporte Remoto
-                        </button>
-                        <button className="btn" onClick={() => router.push(`/tickets/${selectedId}`)}>
-                          Marcar como Resuelto
-                        </button>
-                        <button className="btn btn-secondary" onClick={() => alert("Edición de ticket pendiente")}>
-                          Editar Ticket
-                        </button>
                       </div>
                     </div>
                   )}
