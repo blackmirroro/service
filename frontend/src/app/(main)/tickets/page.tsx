@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Eye, CalendarDays, Building2, Mail, Trash2, Pencil } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -354,8 +354,8 @@ export default function TicketsPage() {
             const requester = users.data?.find((u) => u.id === t.requester_id);
             const assignee = users.data?.find((u) => u.id === (t.assignee_id ?? -1));
             return (
-              <div key={t.id} className="card px-6 py-5 flex flex-col gap-2">
-                {/* Título */}
+              <div key={t.id} className="card px-6 py-5">
+                {/* Header: título + badges a la derecha */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="font-semibold text-slate-900">{t.title}</div>
                   <div className="flex items-center gap-2">
@@ -384,66 +384,74 @@ export default function TicketsPage() {
                   </div>
                 </div>
 
-                {/* Descripción breve */}
+                {/* Descripción */}
                 {t.description && (
-                  <div className="text-sm text-slate-700">{excerpt(t.description, 500)}</div>
+                  <div className="mt-1 text-sm text-slate-700">{excerpt(t.description, 500)}</div>
                 )}
 
-                {/* Meta inferior */}
-                <div className="mt-1 text-xs text-slate-600 flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <span>Creado {new Date(t.created_at).toLocaleString()}</span>
-                  <span>Empresa: {company?.name ?? t.company_id}</span>
-                  <span>
-                    Contacto:{" "}
-                    {requester?.email ? (
-                      <a className="text-brand-700 hover:underline" href={`mailto:${requester.email}`}>
-                        {requester.email}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    Asignado a: <span className="font-medium">{assignee?.full_name || assignee?.email || "Sin asignar"}</span>
-                    <select
-                      className="input h-7 text-xs"
-                      value={t.assignee_id ?? ""}
-                      onChange={(e) => assign(t.id, e.target.value ? Number(e.target.value) : "")}
-                      disabled={users.isLoading}
-                    >
-                      <option value="">Cambiar...</option>
-                      {users.data?.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.full_name || u.email}
-                        </option>
-                      ))}
-                    </select>
-                  </span>
-                </div>
+                {/* Meta + acciones en una sola fila */}
+                <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="text-xs text-slate-600 flex flex-wrap items-center gap-x-5 gap-y-2">
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarDays size={14} className="text-slate-500" />
+                      Creado {new Date(t.created_at).toLocaleString()}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Building2 size={14} className="text-slate-500" />
+                      Empresa: {company?.name ?? t.company_id}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Mail size={14} className="text-slate-500" />
+                      Contacto:{" "}
+                      {requester?.email ? (
+                        <a className="text-brand-700 hover:underline" href={`mailto:${requester.email}`}>
+                          {requester.email}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      Asignado a: <span className="font-medium">{assignee?.full_name || assignee?.email || "Sin asignar"}</span>
+                      <select
+                        className="input h-7 text-xs"
+                        value={t.assignee_id ?? ""}
+                        onChange={(e) => assign(t.id, e.target.value ? Number(e.target.value) : "")}
+                        disabled={users.isLoading}
+                      >
+                        <option value="">Cambiar...</option>
+                        {users.data?.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.full_name || u.email}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  </div>
 
-                {/* Acciones derecha */}
-                <div className="mt-2 flex items-center justify-end gap-2">
-                  <button
-                    className="btn-secondary text-sm"
-                    onClick={() => setSelectedId(t.id)}
-                    title="Ver detalles"
-                  >
-                    Ver detalles
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (confirm("¿Eliminar este ticket?")) {
-                        try {
-                          await api.delete(`/tickets/${t.id}/`);
-                          await queryClient.invalidateQueries({ queryKey: ["tickets"] });
-                        } catch {}
-                      }
-                    }}
-                    className="inline-flex items-center rounded-md bg-red-600 text-white px-3 py-2 text-sm hover:bg-red-700"
-                    title="Eliminar"
-                  >
-                    Eliminar
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="inline-flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900"
+                      onClick={() => setSelectedId(t.id)}
+                      title="Ver detalles"
+                    >
+                      <Eye size={16} className="text-slate-600" /> Ver detalles
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirm("¿Eliminar este ticket?")) {
+                          try {
+                            await api.delete(`/tickets/${t.id}/`);
+                            await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+                          } catch {}
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 rounded-md bg-red-600 text-white px-3 py-2 text-sm hover:bg-red-700"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={16} /> Eliminar
+                    </button>
+                  </div>
                 </div>
               </div>
             );
