@@ -190,6 +190,28 @@ export default function TicketsPage() {
 
   const closeModal = () => setSelectedId(null);
 
+  // Resolver ticket
+  const [showResolve, setShowResolve] = useState(false);
+  const [resSummary, setResSummary] = useState("");
+  const [resStatus, setResStatus] = useState<"closed" | "in_progress" | "open" | "paused">("closed");
+  const [resPriority, setResPriority] = useState<"low" | "normal" | "high" | "urgent">("normal");
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (selectedTicket.data) {
+      setResStatus(
+        (selectedTicket.data.status as any) === "closed" ? "closed" :
+        (selectedTicket.data.status as any) === "paused" ? "paused" :
+        (selectedTicket.data.status as any) === "in_progress" ? "in_progress" : "closed"
+      );
+      setResPriority(
+        (["low", "normal", "high", "urgent"] as const).includes(selectedTicket.data.priority as any)
+          ? (selectedTicket.data.priority as any)
+          : "normal"
+      );
+    }
+  }, [selectedTicket.data]);
+
   const desasignar = async (id: number) => {
     await api.patch(`/tickets/${id}/`, { assignee_id: null });
     await queryClient.invalidateQueries({ queryKey: ["tickets"] });
@@ -651,7 +673,7 @@ export default function TicketsPage() {
                       >
                         Soporte Remoto
                       </button>
-                      <button className="btn" onClick={() => router.push(`/tickets/${selectedId}`)}>
+                      <button className="btn" onClick={() => setShowResolve(true)}>
                         Marcar como Resuelto
                       </button>
                       <button className="btn btn-secondary" onClick={() => alert("Edición de ticket pendiente")}>
@@ -709,6 +731,124 @@ export default function TicketsPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Resolver / Editar Ticket para resolución */}
+      {selectedId && showResolve && selectedTicket.data && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowResolve(false)} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-xl bg-white rounded-lg shadow-xl">
+              <div className="px-5 py-4 border-b flex items-center justify-between">
+                <div className="font-medium">Editar Ticket</div>
+                <button className="text-slate-500 hover:text-slate-700" onClick={() => setShowResolve(false)}>✕</button>
+              </div>
+              <div className="p-5 space-y-4">
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-slate-600">Título</span>
+                  <input className="input" defaultValue={selectedTicket.data.title} readOnly />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-slate-600">Descripción</span>
+                  <textarea className="input min-h-[90px]" defaultValue={selectedTicket.data.description || ""} readOnly />
+                </label>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm text-slate-600">Estado</span>
+                    <select
+                      className="input"
+                      value={resStatus}
+                      onChange={(e) => setResStatus(e.target.value as any)}
+                    >
+                      <option value="closed">Resuelto</option>
+                      <option value="in_progress">En Progreso</option>
+                      <option value="paused">Pausado</option>
+                      <option value="open">Abierto</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm text-slate-600">Prioridad</span>
+                    <select
+                      className="input"
+                      value={resPriority}
+                      onChange={(e) => setResPriority(e.target.value as any)}
+                    >
+                      <option value="low">Baja</option>
+                      <option value="normal">Media</option>
+                      <option value="high">Alta</option>
+                      <option value="urgent">Urgente</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-slate-600">Describe cómo se resolvió el problema</span>
+                  <textarea
+                    className="input min-h-[90px]"
+                    placeholder="Las notas de resolución son obligatorias para tickets resueltos"
+                    value={resSummary}
+                    onChange={(e) => setResSummary(e.target.value)}
+                  />
+                </label>
+
+                {/* Adjuntos (subida simple) */}
+                <div className="border rounded-md p-4">
+                  <div className="text-xs text-slate-500 mb-2">Adjuntos (opcional, máx. 5MB por archivo)</div>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={async (e) => {
+                      if (!e.target.files) return;
+                      setUploading(true);
+                      try {
+                        for (const file of Array.from(e.target.files)) {
+                          const fd = new FormData();
+                          fd.append("file", file as any);
+                          await api.post(`/tickets/${selectedId}/attachments`, fd, {
+                            headers: { "Content-Type": "multipart/form-data" }
+                          });
+                        }
+                      } finally {
+                        setUploading(false);
+                      }
+                    }}
+                  />
+                  {uploading && <div className="text-xs text-slate-500 mt-2">Subiendo archivos...</div>}
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button className="btn-secondary" onClick={() => setShowResolve(false)}>Cancelar</button>
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      // Calculamos HH:MM desde worklogs actuales
+                      const time_hhmm = hhmm(minutesWorked);
+                      try {
+                        await api.post(`/tickets/${selectedId}/resolve/`, {
+                          resolution_summary: resSummary || "(sin notas)",
+                          time_spent_hhmm: time_hhmm,
+                          status: resStatus,
+                          priority: resPriority
+                        });
+                        await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+                        await queryClient.invalidateQueries({ queryKey: ["ticket", selectedId] });
+                        setShowResolve(false);
+                      } catch {
+                        // opcional: notificación
+                      }
+                    }}
+                    disabled={resStatus === "closed" && !resSummary.trim()}
+                    title={resStatus === "closed" && !resSummary.trim() ? "Añade notas de resolución" : ""}
+                  >
+                    Actualizar Ticket
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
