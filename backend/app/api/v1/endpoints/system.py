@@ -7,7 +7,7 @@ from app.core.deps import get_current_user, get_db
 from app.models.config import AppConfig
 from app.schemas.system import EmailConfigIn, EmailConfigOut, EmailTemplatesIn, EmailTemplatesOut
 from app.core.config import settings
-from app.services.email import send_email, load_templates
+from app.services.email import send_email, load_templates, send_email_via
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -154,6 +154,11 @@ def email_test(
         raise HTTPException(status_code=422, detail="Missing 'to' field")
     subject = payload.get("subject") or "Prueba de correo - ServiceFlow"
     body = payload.get("body") or "Este es un correo de prueba de ServiceFlow."
+    provider = payload.get("provider")  # optional override: "mailjet" | "smtp" | "console"
 
-    ok = send_email(to, subject, body, db)
+    ok = False
+    if provider:
+        ok = send_email_via(provider, to, subject, body, db)
+    else:
+        ok = send_email(to, subject, body, db)
     return {"ok": bool(ok)}

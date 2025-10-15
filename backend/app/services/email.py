@@ -54,14 +54,23 @@ def _smtp_client(host: Optional[str], port: Optional[int]):
 
 def send_email(to_email: str, subject: str, body: str, db: Optional[Session] = None) -> bool:
     """
-    Provider-aware email sending.
-    - provider=smtp: sends via SMTP_* settings
-    - provider=mailjet: sends via Mailjet API
-    - provider=console: prints to logs only
-    - provider=disabled: returns False
+    Provider-aware email sending using configured provider.
     """
     cfg = _runtime_email_settings(db)
-    provider = cfg["provider"]
+    return _send_with_provider_cfg(cfg, to_email, subject, body)
+
+
+def send_email_via(provider: str, to_email: str, subject: str, body: str, db: Optional[Session] = None) -> bool:
+    """
+    Force a specific provider for testing purposes, using current stored credentials.
+    """
+    cfg = _runtime_email_settings(db)
+    cfg["provider"] = provider
+    return _send_with_provider_cfg(cfg, to_email, subject, body)
+
+
+def _send_with_provider_cfg(cfg: Dict[str, Any], to_email: str, subject: str, body: str) -> bool:
+    provider = cfg.get("provider")
 
     if provider == "disabled" or provider is None:
         return False

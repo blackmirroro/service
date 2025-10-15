@@ -483,6 +483,9 @@ export default function EmailConfigPage() {
         )}
       </div>
 
+      {/* Prueba de servicios de correo */}
+      <MailServicesTest />
+
       <div className="text-xs text-slate-500">
         Notas:
         <ul className="list-disc ml-5 space-y-1 mt-2">
@@ -491,6 +494,76 @@ export default function EmailConfigPage() {
           <li>Consola: imprime los correos en logs (útil para desarrollo).</li>
           <li>Deshabilitado: no se envían correos.</li>
         </ul>
+      </div>
+    </div>
+  );
+}
+
+function MailServicesTest() {
+  const [to, setTo] = useState("");
+  const [tab, setTab] = useState<"system" | "mailjet">("system");
+  const [sending, setSending] = useState(false);
+
+  const send = async () => {
+    if (!to) {
+      alert("Indica una dirección de correo de prueba.");
+      return;
+    }
+    setSending(true);
+    try {
+      const payload: any = { to, subject: "Prueba de correo - ServiceFlow", body: "Mensaje de prueba." };
+      if (tab === "mailjet") payload.provider = "mailjet";
+      const { data } = await api.post("/system/email/test", payload);
+      if (data?.ok) alert("Correo de prueba enviado.");
+      else alert("No se pudo enviar el correo de prueba.");
+    } catch {
+      alert("Error enviando la prueba.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="card p-5 space-y-4 max-w-3xl">
+      <div>
+        <div className="text-lg font-semibold">Prueba de servicios de correo</div>
+        <div className="text-sm text-slate-600">Verifica el correcto funcionamiento de los diferentes servicios de correo</div>
+      </div>
+
+      <div className="rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-xs px-3 py-2">
+        Esta sección permite probar diferentes servicios de correo electrónico. Asegúrate de que las credenciales estén configuradas correctamente para cada servicio que desees probar.
+      </div>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-sm text-slate-600">Dirección de correo de prueba</span>
+        <input className="input" value={to} onChange={(e) => setTo(e.target.value)} placeholder="destinatario@correo.com" />
+      </label>
+
+      <div className="flex items-center gap-3">
+        <button
+          className={`px-3 py-2 rounded-md border text-sm ${tab === "system" ? "bg-white border-slate-300" : "bg-slate-100 border-slate-200"}`}
+          onClick={() => setTab("system")}
+        >
+          Sistema Estándar
+        </button>
+        <button
+          className={`px-3 py-2 rounded-md border text-sm ${tab === "mailjet" ? "bg-white border-slate-300" : "bg-slate-100 border-slate-200"}`}
+          onClick={() => setTab("mailjet")}
+        >
+          Mailjet
+        </button>
+      </div>
+
+      <div className="rounded-md border p-4">
+        <div className="font-medium mb-1">{tab === "system" ? "Sistema de correo estándar" : "Mailjet"}</div>
+        <div className="text-sm text-slate-500 mb-3">
+          {tab === "system"
+            ? "Usa el sistema de correo estándar configurado en la sección anterior."
+            : "Forzará el uso de Mailjet usando las claves configuradas."}
+        </div>
+        <button className="btn" onClick={send} disabled={sending}>
+          {sending ? "Enviando..." : "Enviar correo de prueba"}
+        </button>
       </div>
     </div>
   );
