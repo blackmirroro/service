@@ -302,8 +302,23 @@ function UserForm({
 
               <label className="flex flex-col gap-1 md:col-span-2">
                 <span className="text-sm text-slate-600">Correo electrónico</span>
-                <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-                <span className="text-[11px] text-slate-500">Nombre de usuario (login): se usa el correo electrónico</span>
+                <input
+                  className="input"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 md:col-span-2">
+                <span className="text-sm text-slate-600">Nombre de usuario</span>
+                <input
+                  className="input"
+                  value={form.email}
+                  readOnly
+                  title="El nombre de usuario coincide con el email"
+                />
+                <span className="text-[11px] text-slate-500">El nombre de usuario (login) es el mismo que el correo.</span>
               </label>
 
               <label className="flex flex-col gap-1">
