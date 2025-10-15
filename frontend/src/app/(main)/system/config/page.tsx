@@ -339,156 +339,84 @@ export default function EmailConfigPage() {
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold">Configuración de Email</h2>
+      <h2 className="text-lg font-semibold">Configuración de Correo</h2>
 
-      <form onSubmit={onSubmit} className="card p-4 space-y-4 max-w-2xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-600">Proveedor</span>
-            <select
-              className="input"
-              value={form.provider}
-              onChange={(e) => handleChange("provider", e.target.value)}
-            >
-              <option value="mailjet">Mailjet (recomendado)</option>
-              <option value="smtp">SMTP</option>
-              <option value="console">Consola (debug)</option>
-              <option value="disabled">Deshabilitado</option>
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-600">From Email</span>
-            <input
-              className="input"
-              type="email"
-              value={form.from_email || ""}
-              onChange={(e) => handleChange("from_email", e.target.value)}
-              placeholder="no-reply@tu-dominio.com"
-            />
-          </label>
-        </div>
-
-        {form.provider === "mailjet" && (
-          <div className="space-y-3">
-            <div className="text-sm font-medium">Mailjet</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">API Key</span>
-                <input
-                  className="input"
-                  type="password"
-                  onChange={(e) => handleChange("mailjet_api_key", e.target.value)}
-                  placeholder={cfg.data?.has_mailjet_keys ? "********" : "tu_api_key"}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">API Secret</span>
-                <input
-                  className="input"
-                  type="password"
-                  onChange={(e) => handleChange("mailjet_api_secret", e.target.value)}
-                  placeholder={cfg.data?.has_mailjet_keys ? "********" : "tu_api_secret"}
-                />
-              </label>
-            </div>
+      <div className="card p-5 space-y-5 max-w-3xl">
+        {/* Notificaciones por correo */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="font-medium">Notificaciones por correo</div>
+            <div className="text-sm text-slate-500">Recibirás correos cuando se actualicen tus tickets o se añadan comentarios públicos.</div>
           </div>
-        )}
-
-        {form.provider === "smtp" && (
-          <div className="space-y-3">
-            <div className="text-sm font-medium">SMTP</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">Host</span>
-                <input
-                  className="input"
-                  value={form.smtp_host || ""}
-                  onChange={(e) => handleChange("smtp_host", e.target.value)}
-                  placeholder="smtp.tu-dominio.com"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">Puerto</span>
-                <input
-                  className="input"
-                  type="number"
-                  value={form.smtp_port || 587}
-                  onChange={(e) => handleChange("smtp_port", Number(e.target.value))}
-                  placeholder="587"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">Usuario</span>
-                <input
-                  className="input"
-                  value={form.smtp_user || ""}
-                  onChange={(e) => handleChange("smtp_user", e.target.value)}
-                  placeholder="usuario"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">Contraseña</span>
-                <input
-                  className="input"
-                  type="password"
-                  onChange={(e) => handleChange("smtp_pass", e.target.value)}
-                  placeholder={cfg.data?.has_smtp_pass ? "********" : "contraseña"}
-                />
-              </label>
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              defaultChecked
+              onChange={() => {}}
+            />
+            <div className="w-11 h-6 bg-slate-200 rounded-full relative transition-colors peer-checked:bg-brand-600">
+              <div className="absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
             </div>
+          </label>
+        </div>
+
+        {/* Proveedor */}
+        <div>
+          <label className="text-sm text-slate-600">Proveedor de correo</label>
+          <select
+            className="input mt-1"
+            value={form.provider}
+            onChange={(e) => handleChange("provider", e.target.value)}
+          >
+            <option value="mailjet">Mailjet</option>
+            <option value="smtp">SMTP</option>
+            <option value="console">Consola (debug)</option>
+            <option value="disabled">Deshabilitado</option>
+          </select>
+          <div className="mt-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
+            Servicios de correo Mailjet - API para correos transaccionales (RECOMENDADO)
           </div>
-        )}
+        </div>
 
-        <div className="flex items-center gap-3">
-          <button disabled={saving} className="btn" type="submit">
-            {saving ? "Guardando..." : "Guardar configuración"}
-          </button>
-          <span className="text-xs text-slate-500">
-            Solo superadmin puede modificar estos valores.
-          </span>
+        {/* Firma personalizada */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">Firma de correo personalizada</div>
+            <div className="text-sm text-slate-500">Personaliza la firma que aparecerá automáticamente al final de los correos de notificación de tickets.</div>
+          </div>
+          <button className="btn-secondary">Personalizar</button>
         </div>
-      </form>
 
-      <form onSubmit={onTest} className="card p-4 space-y-4 max-w-2xl">
-        <div className="text-sm font-medium">Enviar correo de prueba</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-600">Para (email)</span>
-            <input
-              className="input"
-              type="email"
-              value={testTo}
-              onChange={(e) => setTestTo(e.target.value)}
-              placeholder="destinatario@correo.com"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-slate-600">Asunto</span>
-            <input
-              className="input"
-              value={testSubject}
-              onChange={(e) => setTestSubject(e.target.value)}
-            />
-          </label>
-        </div>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-slate-600">Mensaje</span>
-          <textarea
-            className="input min-h-[100px]"
-            value={testBody}
-            onChange={(e) => setTestBody(e.target.value)}
-          />
-        </label>
-        <div className="flex items-center gap-3">
-          <button disabled={testing} className="btn" type="submit">
-            {testing ? "Enviando..." : "Enviar prueba"}
-          </button>
-          <span className="text-xs text-slate-500">
-            Disponible para superadmin y admin.
-          </span>
-        </div>
-      </form>
+        {/* Mostrar/ocultar credenciales */}
+        <EmailCredentialsPanel
+          provider={form.provider}
+          hasMailjetKeys={!!cfg.data?.has_mailjet_keys}
+          hasSmtpPass={!!cfg.data?.has_smtp_pass}
+          onChange={(field, value) => handleChange(field as any, value)}
+          onSave={async () => {
+            setSaving(true);
+            try {
+              await save.mutateAsync(form);
+              alert("Configuración guardada");
+            } catch {
+              alert("No se pudo guardar la configuración");
+            } finally {
+              setSaving(false);
+            }
+          }}
+          test={{
+            testTo,
+            setTestTo,
+            testSubject,
+            setTestSubject,
+            testBody,
+            setTestBody,
+            testing,
+            onTest,
+          }}
+        />
+      </div>
 
       <div className="text-xs text-slate-500">
         Notas:
@@ -499,6 +427,130 @@ export default function EmailConfigPage() {
           <li>Deshabilitado: no se envían correos.</li>
         </ul>
       </div>
+    </div>
+  );
+}
+
+function EmailCredentialsPanel({
+  provider,
+  hasMailjetKeys,
+  hasSmtpPass,
+  onChange,
+  onSave,
+  test,
+}: {
+  provider: string;
+  hasMailjetKeys: boolean;
+  hasSmtpPass: boolean;
+  onChange: (field: string, value: any) => void;
+  onSave: () => void | Promise<void>;
+  test: {
+    testTo: string;
+    setTestTo: (v: string) => void;
+    testSubject: string;
+    setTestSubject: (v: string) => void;
+    testBody: string;
+    setTestBody: (v: string) => void;
+    testing: boolean;
+    onTest: (e: React.FormEvent) => Promise<void> | void;
+  };
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="font-medium">Configurar credenciales</div>
+        <button className="btn-secondary" onClick={() => setOpen((v) => !v)}>
+          {open ? "Ocultar" : "Mostrar"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="rounded-md border p-4 space-y-4">
+          {provider === "mailjet" && (
+            <>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-slate-600">API Key de Mailjet</span>
+                <input
+                  className="input"
+                  type="password"
+                  placeholder={hasMailjetKeys ? "********************************" : "Tu API Key pública de Mailjet"}
+                  onChange={(e) => onChange("mailjet_api_key", e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-slate-600">Secret Key de Mailjet</span>
+                <input
+                  className="input"
+                  type="password"
+                  placeholder={hasMailjetKeys ? "********************************" : "Tu Secret Key de Mailjet"}
+                  onChange={(e) => onChange("mailjet_api_secret", e.target.value)}
+                />
+              </label>
+
+              <div className="rounded-md bg-sky-50 border border-sky-200 px-3 py-2 text-xs text-sky-800">
+                <div className="font-medium mb-1">Cómo obtener tus claves de Mailjet:</div>
+                <ol className="list-decimal ml-5 space-y-1">
+                  <li>Inicia sesión en tu cuenta de Mailjet</li>
+                  <li>Ve a Account Settings → REST API</li>
+                  <li>Copia la API Key en el primer campo</li>
+                  <li>Copia la Secret Key en el segundo campo</li>
+                  <li>Asegúrate de tener un dominio verificado en Settings → Senders &amp; Domains</li>
+                </ol>
+              </div>
+            </>
+          )}
+
+          {provider === "smtp" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-slate-600">Host</span>
+                <input className="input" onChange={(e) => onChange("smtp_host", e.target.value)} placeholder="smtp.tu-dominio.com" />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-slate-600">Puerto</span>
+                <input className="input" type="number" defaultValue={587} onChange={(e) => onChange("smtp_port", Number(e.target.value))} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-slate-600">Usuario</span>
+                <input className="input" onChange={(e) => onChange("smtp_user", e.target.value)} placeholder="usuario" />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-slate-600">Contraseña</span>
+                <input
+                  className="input"
+                  type="password"
+                  onChange={(e) => onChange("smtp_pass", e.target.value)}
+                  placeholder={hasSmtpPass ? "********" : "contraseña"}
+                />
+              </label>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <button className="btn" onClick={onSave}>Guardar configuración</button>
+            <form onSubmit={test.onTest} className="flex items-center gap-2">
+              <input
+                className="input h-9"
+                placeholder="destinatario@correo.com"
+                type="email"
+                value={test.testTo}
+                onChange={(e) => test.setTestTo(e.target.value)}
+              />
+              <button disabled={test.testing} className="btn" type="submit">
+                {test.testing ? "Probando..." : "Probar configuración"}
+              </button>
+            </form>
+          </div>
+
+          <div className="rounded-md bg-slate-50 border px-3 py-2 text-xs text-slate-700">
+            <div className="font-medium mb-1">Opciones adicionales de prueba</div>
+            Además de la configuración estándar, puedes probar servicios alternativos como SendGrid o Mailjet desde la sección de prueba de
+            servicios de correo que aparece debajo.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
