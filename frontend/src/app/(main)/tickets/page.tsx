@@ -580,10 +580,13 @@ export default function TicketsPage() {
                     </div>
                   )}
 
-                  {/* Control de tiempo */}
-                  <div className="card p-4 space-y-3">
+                  {/* Control de Tiempo (según diseño) */}
+                  <div className="card p-4 space-y-4">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium">Control de Tiempo</div>
+                      <div>
+                        <div className="font-medium">Control de Tiempo</div>
+                        <div className="text-xs text-slate-500">Gestiona el tiempo de trabajo en este ticket</div>
+                      </div>
                       <Badge color={statusBadgeColor(selectedTicket.data.status)}>
                         {selectedTicket.data.status === "open"
                           ? "Abierto"
@@ -594,21 +597,66 @@ export default function TicketsPage() {
                           : "Resuelto"}
                       </Badge>
                     </div>
-                    <div className="text-sm text-slate-600">Gestiona el tiempo de trabajo en este ticket</div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <input type="radio" checked readOnly className="accent-brand-600" />
                         <span className="text-slate-600">Tiempo trabajado:</span>
-                        <span className="font-medium">{hhmm(minutesWorked)}</span>
+                        <span className="font-semibold">{hhmm(minutesWorked)}</span>
                       </div>
-                      {hasActiveWork ? (
-                        <button className="btn btn-secondary" onClick={stopWork}>
-                          Detener Trabajo
-                        </button>
-                      ) : (
-                        <button className="btn btn-secondary" onClick={startWork}>
-                          Iniciar Trabajo
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {!hasActiveWork ? (
+                          <button className="btn btn-secondary" onClick={startWork}>
+                            Reanudar Trabajo
+                          </button>
+                        ) : (
+                          <button className="btn btn-secondary" onClick={stopWork}>
+                            Parar Tiempo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Historial simple de worklogs */}
+                    <div>
+                      <div className="text-xs font-medium text-slate-700 mb-2">Historial de tiempo:</div>
+                      <div className="space-y-1">
+                        {(worklogs.data || []).length === 0 && (
+                          <div className="text-xs text-slate-500">Sin registros aún.</div>
+                        )}
+                        {(worklogs.data || []).map((w) => {
+                          const started = new Date(w.started_at).toLocaleString();
+                          const ended = w.ended_at ? new Date(w.ended_at).toLocaleString() : null;
+                          return (
+                            <div key={w.id} className="flex items-center gap-2 text-xs">
+                              <span className={`h-2 w-2 rounded-full ${w.ended_at ? "bg-slate-400" : "bg-amber-500"}`} />
+                              <span className="text-slate-600">
+                                {ended ? "Pausado" : "Iniciado"} · {started}
+                                {ended ? ` → ${ended}` : ""}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          const url = process.env.NEXT_PUBLIC_REMOTE_SUPPORT_URL || "#";
+                          if (url === "#") return;
+                          window.open(url, "_blank");
+                        }}
+                      >
+                        Soporte Remoto
+                      </button>
+                      <button className="btn" onClick={() => router.push(`/tickets/${selectedId}`)}>
+                        Marcar como Resuelto
+                      </button>
+                      <button className="btn btn-secondary" onClick={() => alert("Edición de ticket pendiente")}>
+                        Editar Ticket
+                      </button>
                     </div>
                   </div>
 
