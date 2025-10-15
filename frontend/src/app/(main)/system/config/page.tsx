@@ -40,6 +40,17 @@ export default function EmailConfigPage() {
     return localStorage.getItem("sf_theme") || "apple-blue";
   });
 
+  // Funcionalidades (persistencia local por ahora; luego se llevará a backend/AppConfig)
+  const [featureHardware, setFeatureHardware] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("sf_hw_requests_enabled") === "1";
+  });
+  const [featureAutoAssign, setFeatureAutoAssign] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const v = localStorage.getItem("sf_auto_assign_enabled");
+    return v === null ? true : v === "1";
+  });
+
   const applyDark = (v: boolean) => {
     if (typeof document === "undefined") return;
     const html = document.documentElement;
@@ -263,6 +274,68 @@ export default function EmailConfigPage() {
         <div className="flex items-center justify-between pt-2">
           <div className="text-sm text-slate-500">Efectos visuales</div>
           <button className="btn-secondary">Configurar efectos</button>
+        </div>
+      </div>
+
+      {/* Funcionalidades */}
+      <div className="card p-5 space-y-5">
+        <div>
+          <div className="text-lg font-semibold">Funcionalidades</div>
+          <div className="text-sm text-slate-600">Activa o desactiva características del sistema</div>
+        </div>
+
+        {/* Permitir solicitudes de hardware */}
+        <div className="flex items-start justify-between rounded-md border p-4">
+          <div>
+            <div className="font-medium">Permitir solicitudes de hardware</div>
+            <div className="text-sm text-slate-500">
+              {featureHardware ? "Las solicitudes de hardware están activas." : "Las solicitudes de hardware están desactivadas."}
+            </div>
+          </div>
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={featureHardware}
+              onChange={(e) => {
+                setFeatureHardware(e.target.checked);
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("sf_hw_requests_enabled", e.target.checked ? "1" : "0");
+                }
+              }}
+            />
+            <div className={`w-11 h-6 bg-slate-200 rounded-full relative transition-colors ${featureHardware ? "bg-brand-600" : ""}`}>
+              <div className={`absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform ${featureHardware ? "translate-x-5" : ""}`} />
+            </div>
+          </label>
+        </div>
+
+        {/* Asignación automática de tickets */}
+        <div className="flex items-start justify-between rounded-md border p-4">
+          <div>
+            <div className="font-medium">Asignación automática de tickets</div>
+            <div className="text-sm text-slate-500">
+              {featureAutoAssign
+                ? "Los tickets nuevos serán asignados automáticamente a los técnicos disponibles."
+                : "La asignación automática está desactivada."}
+            </div>
+          </div>
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={featureAutoAssign}
+              onChange={(e) => {
+                setFeatureAutoAssign(e.target.checked);
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("sf_auto_assign_enabled", e.target.checked ? "1" : "0");
+                }
+              }}
+            />
+            <div className={`w-11 h-6 bg-slate-200 rounded-full relative transition-colors ${featureAutoAssign ? "bg-brand-600" : ""}`}>
+              <div className={`absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform ${featureAutoAssign ? "translate-x-5" : ""}`} />
+            </div>
+          </label>
         </div>
       </div>
 
