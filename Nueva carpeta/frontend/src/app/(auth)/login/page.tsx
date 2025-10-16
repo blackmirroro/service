@@ -35,8 +35,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      // Añadimos barra final para evitar 307 y posibles problemas de CORS/redirecciones
-      const { data } = await api.post("/auth/login/", { email, password });
+      const { data } = await api.post("/auth/login", { email, password });
       if (typeof window !== "undefined") {
         localStorage.setItem("sf_token", data.access_token);
         localStorage.setItem("sf_email", email);
