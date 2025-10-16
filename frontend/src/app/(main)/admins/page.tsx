@@ -33,7 +33,7 @@ export default function AdminsPage() {
   const me = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
-      const { data } = await api.get<User>("/auth/me");
+      const { data } = await api.get<User>("/auth/me/");
       return data;
     }
   });
@@ -41,7 +41,7 @@ export default function AdminsPage() {
   const admins = useQuery({
     queryKey: ["admins"],
     queryFn: async () => {
-      const { data } = await api.get<User[]>("/users", { params: { role_filter: "admin" } });
+      const { data } = await api.get<User[]>("/users/", { params: { role_filter: "admin" } });
       return data;
     },
     enabled: !!me.data && me.data.role === "superadmin",
@@ -51,7 +51,7 @@ export default function AdminsPage() {
   const companies = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data } = await api.get<Company[]>("/companies");
+      const { data } = await api.get<Company[]>("/companies/");
       return data;
     },
     enabled: !!me.data && me.data.role === "superadmin"
@@ -63,7 +63,7 @@ export default function AdminsPage() {
 
   const delUser = useMutation({
     mutationFn: async (id: number) => {
-      await api.delete(`/users/${id}`);
+      await api.delete(`/users/${id}/`);
     },
     onSuccess: async () => {
       setConfirmDelete(null);
@@ -101,6 +101,16 @@ export default function AdminsPage() {
                 </div>
               </div>
               <span className="text-xs px-2 py-1 rounded-full border">Administrador</span>
+            </div>
+
+            {/* Credenciales en tarjeta */}
+            <div className="rounded-md border px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">Credenciales</div>
+              <div className="text-xs text-slate-700">Usuario: {u.email}</div>
+              <div className="text-xs text-slate-700 flex items-center gap-2">
+                Contraseña: <span className="tracking-widest">••••••••</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Segura</span>
+              </div>
             </div>
 
             <div className="text-xs text-slate-600">
@@ -150,11 +160,22 @@ export default function AdminsPage() {
               <div className="text-slate-500">{viewUser.email}</div>
             </div>
           </div>
-          <div className="text-sm mt-3">
-            Empresa:{" "}
-            <span className="font-medium">{companies.data?.find((c) => c.id === viewUser.company_id)?.name || viewUser.company_id}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm mt-3">
+            <div><span className="text-slate-500">Email:</span> <span className="font-medium">{viewUser.email}</span></div>
+            <div><span className="text-slate-500">Rol:</span> <span className="font-medium">Administrador</span></div>
+            <div><span className="text-slate-500">Departamento:</span>{" "}
+              <span className="font-medium">{companies.data?.find((c) => c.id === viewUser.company_id)?.name || viewUser.company_id}</span>
+            </div>
+            <div><span className="text-slate-500">Fecha de registro:</span> <span className="font-medium">—</span></div>
           </div>
-          <div className="text-sm">Estado: <span className="font-medium">{viewUser.is_active ? "Activo" : "Inactivo"}</span></div>
+          <div className="rounded-md border px-3 py-2 mt-3">
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">Credenciales</div>
+            <div className="text-xs text-slate-700">Usuario: {viewUser.email}</div>
+            <div className="text-xs text-slate-700 flex items-center gap-2">
+              Contraseña (cifrada): <span className="tracking-widest">••••••••</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Segura</span>
+            </div>
+          </div>
         </ViewDialog>
       )}
 
@@ -197,7 +218,7 @@ function AdminForm({
 
   const createMut = useMutation({
     mutationFn: async () => {
-      await api.post("/users", {
+      await api.post("/users/", {
         full_name: form.full_name || null,
         email: form.email,
         role: "admin",
@@ -224,7 +245,7 @@ function AdminForm({
         can_view_all_companies: form.can_view_all_companies
       };
       if (form.password) payload.password = form.password;
-      await api.patch(`/users/${user?.id}`, payload);
+      await api.patch(`/users/${user?.id}/`, payload);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admins"] });
@@ -252,6 +273,11 @@ function AdminForm({
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-slate-600">Email</span>
                 <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </label>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-sm text-slate-600">Usuario</span>
+                <input className="input" value={form.email} readOnly title="Usuario = email" />
               </label>
 
               <label className="flex flex-col gap-1">

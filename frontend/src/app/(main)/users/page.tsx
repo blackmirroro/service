@@ -35,9 +35,9 @@ export default function UsersPage() {
   const qc = useQueryClient();
 
   const users = useQuery({
-    queryKey: ["users"],
+    queryKey: ["users","only-user-role"],
     queryFn: async () => {
-      const { data } = await api.get<User[]>("/users");
+      const { data } = await api.get<User[]>("/users/", { params: { role_filter: "user" } });
       return data;
     },
     refetchInterval: 30000
@@ -46,7 +46,7 @@ export default function UsersPage() {
   const companies = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data } = await api.get<Company[]>("/companies");
+      const { data } = await api.get<Company[]>("/companies/");
       return data;
     }
   });
@@ -54,7 +54,7 @@ export default function UsersPage() {
   const me = useQuery({
     queryKey: ["me"],
     queryFn: async () => {
-      const { data } = await api.get<User>("/auth/me");
+      const { data } = await api.get<User>("/auth/me/");
       return data;
     }
   });
@@ -65,7 +65,7 @@ export default function UsersPage() {
 
   const toggleActive = useMutation({
     mutationFn: async (u: User) => {
-      await api.patch(`/users/${u.id}`, { is_active: !u.is_active });
+      await api.patch(`/users/${u.id}/`, { is_active: !u.is_active });
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["users"] });
@@ -74,7 +74,7 @@ export default function UsersPage() {
 
   const delUser = useMutation({
     mutationFn: async (id: number) => {
-      await api.delete(`/users/${id}`);
+      await api.delete(`/users/${id}/`);
     },
     onSuccess: async () => {
       setConfirmDelete(null);
@@ -95,11 +95,6 @@ export default function UsersPage() {
           <p className="text-sm text-slate-500">Gestiona usuarios por empresa, roles y estado.</p>
         </div>
         <div className="flex items-center gap-2">
-          {canCreateTech ? (
-            <Link href="/users/create-tech" className="btn inline-flex items-center gap-2">
-              <Wrench size={16} /> Nuevo Técnico
-            </Link>
-          ) : null}
           <button className="btn inline-flex items-center gap-2" onClick={() => setShowForm({ mode: "create" })}>
             <UserPlus size={16} /> Nuevo Usuario
           </button>
@@ -209,7 +204,7 @@ function UserForm({
   const companies = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data } = await api.get<Company[]>("/companies");
+      const { data } = await api.get<Company[]>("/companies/");
       return data;
     }
   });
@@ -226,7 +221,7 @@ function UserForm({
 
   const createMut = useMutation({
     mutationFn: async () => {
-      await api.post("/users", {
+      await api.post("/users/", {
         full_name: form.full_name || null,
         email: form.email,
         role: form.role,
@@ -253,7 +248,7 @@ function UserForm({
         can_view_all_companies: form.can_view_all_companies
       };
       if (form.password) payload.password = form.password;
-      await api.patch(`/users/${user?.id}`, payload);
+      await api.patch(`/users/${user?.id}/`, payload);
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["users"] });
@@ -262,6 +257,23 @@ function UserForm({
   });
 
   const saving = createMut.isPending || updateMut.isPending;
+
+  // Helpers para partir nombre/apellido en UI (sin cambiar el modelo)
+  const firstLast = (() => {
+    const parts = (form.full_name || "").split(" ");
+    const first = parts[0] || "";
+    const last = parts.slice(1).join(" ");
+    return { first, last };
+  })();
+
+  const updateFirst = (v: string) => {
+    const { last } = firstLast;
+    setForm({ ...form, full_name: [v, last].filter(Boolean).join(" ") });
+  };
+  const updateLast = (v: string) => {
+    const { first } = firstLast;
+    setForm({ ...form, full_name: [first, v].filter(Boolean).join(" ") });
+  };
 
   return (
     <div className="fixed inset-0 z-50">
@@ -276,11 +288,32 @@ function UserForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-slate-600">Nombre</span>
-                <input className="input" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+                <input className="input" value={firstLast.first} onChange={(e) => updateFirst(e.target.value)} />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">Email</span>
-                <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <span className="text-sm text-slate-600">Apellido</span>
+                <input className="input" value={firstLast.last} onChange={(e) => updateLast(e.target.value)} />
+              </label>
+
+              <label className="flex flex-col gap-1 md:col-span-2">
+                <span className="text-sm text-slate-600">Correo electrónico</span>
+                <input
+                  className="input"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 md:col-span-2">
+                <span className="text-sm text-slate-600">Nombre de usuario</span>
+                <input
+                  className="input"
+                  value={form.email}
+                  readOnly
+                  title="El nombre de usuario coincide con el email"
+                />
+                <span className="text-[11px] text-slate-500">El nombre de usuario (login) es el mismo que el correo.</span>
               </label>
 
               <label className="flex flex-col gap-1">
@@ -298,7 +331,7 @@ function UserForm({
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600">Empresa</span>
+                <span className="text-sm text-slate-600">Departamento (Empresa)</span>
                 <select
                   className="input"
                   value={form.company_id}
@@ -322,7 +355,7 @@ function UserForm({
                 <span className="text-sm text-slate-700">Activo</span>
               </label>
 
-              {form.role === "tech" || form.role === "admin" ? (
+              {(form.role === "tech" || form.role === "admin") && (
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -332,7 +365,7 @@ function UserForm({
                   />
                   <span className="text-sm text-slate-700">Puede ver todas las empresas</span>
                 </label>
-              ) : null}
+              )}
 
               <label className="flex flex-col gap-1 md:col-span-2">
                 <span className="text-sm text-slate-600">{mode === "create" ? "Contraseña" : "Nueva contraseña (opcional)"}</span>
@@ -407,6 +440,8 @@ function ConfirmDialog({
 }
 
 function UserView({ user, companyName, onClose }: { user: User; companyName?: string; onClose: () => void }) {
+  // No tenemos created_at en el modelo; mostramos "—" para registro
+  const registeredAt = "—";
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -416,7 +451,7 @@ function UserView({ user, companyName, onClose }: { user: User; companyName?: st
             <div className="font-medium">Detalles del Usuario</div>
             <button className="text-slate-500 hover:text-slate-700" onClick={onClose}>✕</button>
           </div>
-          <div className="p-5 space-y-3 text-sm">
+          <div className="p-5 space-y-4 text-sm">
             <div className="flex items-center gap-3">
               <Avatar name={user.full_name || user.email} />
               <div>
@@ -424,13 +459,25 @@ function UserView({ user, companyName, onClose }: { user: User; companyName?: st
                 <div className="text-slate-500">{user.email}</div>
               </div>
             </div>
-            <div>Rol: <span className="font-medium">{roleLabel(user.role)}</span></div>
-            <div>Empresa: <span className="font-medium">{companyName || user.company_id}</span></div>
-            <div>Estado: <span className="font-medium">{user.is_active ? "Activo" : "Inactivo"}</span></div>
-            {(user.role === "tech" || user.role === "admin") && (
-              <div>Alcance: <span className="font-medium">{user.can_view_all_companies ? "Puede ver todas las empresas" : "Solo su empresa"}</span></div>
-            )}
-            <div className="pt-2 text-xs text-slate-500">Las credenciales se almacenan cifradas. Para cambiar la contraseña, edita el usuario.</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+              <div><span className="text-slate-500">Email:</span> <span className="font-medium">{user.email}</span></div>
+              <div><span className="text-slate-500">Rol:</span> <span className="font-medium">{roleLabel(user.role)}</span></div>
+              <div><span className="text-slate-500">Departamento:</span> <span className="font-medium">{companyName || user.company_id}</span></div>
+              <div><span className="text-slate-500">Fecha de registro:</span> <span className="font-medium">{registeredAt}</span></div>
+            </div>
+
+            <div className="rounded-md border px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">Credenciales de acceso</div>
+              <div className="text-xs text-slate-700">Usuario: {user.email}</div>
+              <div className="text-xs text-slate-700 flex items-center gap-2">
+                Contraseña (cifrada): <span className="tracking-widest">••••••••</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Segura</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">
+                Por seguridad, nunca mostramos la contraseña real. Puedes actualizarla desde “Editar”.
+              </div>
+            </div>
+
             <div className="pt-2">
               <button className="btn-secondary" onClick={onClose}>Cerrar</button>
             </div>

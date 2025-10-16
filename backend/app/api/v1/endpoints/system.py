@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.models.config import AppConfig
-from app.schemas.system import EmailConfigIn, EmailConfigOut
+from app.schemas.system import EmailConfigIn, EmailConfigOut, EmailTemplatesIn, EmailTemplatesOut
 from app.core.config import settings
-from app.services.email import send_email
+from app.services.email import send_email, load_templates, send_email_via
 
 router = APIRouter(prefix="/system", tags=["system"])
 
@@ -101,6 +101,44 @@ def update_email_config(
     return get_email_config(db, current)
 
 
+@router.get("/email/templates", response_model=EmailTemplatesOut)
+def get_email_templates(
+    db: Session = Depends(get_db),
+    current=Depends(get_current_user),
+):
+    role = (current._token_payload or {}).get("role")
+    if role not in {"superadmin", "admin"}:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    tpls = load_templates(db)
+    return EmailTemplatesOut(templates=tpls)
+
+
+@router.put("/email/templates", response_model=EmailTemplatesOut)
+def update_email_templates(
+    payload: EmailTemplatesIn,
+    db: Session = Depends(get_db),
+    current=Depends(get_current_user),
+):
+    role = (current._token_payload or {}).get("role")
+    if role != "superadmin":
+        raise HTTPException(status_code=403, detail="Only superadmin can update templates")
+
+    kv: Dict[str, str] = {}
+    for key, pair in payload.templates.items():
+        subj = pair.get("subject")
+        body = pair.get("body")
+        if subj is not None:
+            kv[f"email.tpl.{key}.subject"] = subj
+        if body is not None:
+            kv[f"email.tpl.{key}.body"] = body
+
+    _set_many(db, kv)
+
+    tpls = load_templates(db)
+    return EmailTemplatesOut(templates=tpls)
+
+
 @router.post("/email/test")
 def email_test(
     payload: dict,
@@ -116,6 +154,11 @@ def email_test(
         raise HTTPException(status_code=422, detail="Missing 'to' field")
     subject = payload.get("subject") or "Prueba de correo - ServiceFlow"
     body = payload.get("body") or "Este es un correo de prueba de ServiceFlow."
+    provider = payload.get("provider")  # optional override: "mailjet" | "smtp" | "console"
 
-    ok = send_email(to, subject, body, db)
+    ok = False
+    if provider:
+        ok = send_email_via(provider, to, subject, body, db)
+    else:
+        ok = send_email(to, subject, body, db)
     return {"ok": bool(ok)}

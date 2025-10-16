@@ -13,7 +13,7 @@ export default function CompaniesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const { data } = await api.get<Company[]>("/companies");
+      const { data } = await api.get<Company[]>("/companies/");
       return data;
     }
   });

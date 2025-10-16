@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict
 
 
 class EmailConfigIn(BaseModel):
@@ -26,3 +26,11 @@ class EmailConfigOut(BaseModel):
     # no smtp_pass in output
     has_smtp_pass: bool = False
     has_mailjet_keys: bool = False
+
+
+class EmailTemplatesOut(BaseModel):
+    templates: Dict[str, Dict[str, str]]  # {"comment_user":{"subject":"..","body":".."}, ...}
+
+
+class EmailTemplatesIn(BaseModel):
+    templates: Dict[str, Dict[str, str]]

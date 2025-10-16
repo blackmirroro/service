@@ -73,6 +73,11 @@ services:
       S3_SECRET_KEY: minioadmin
       S3_USE_PATH_STYLE: "true"
       UPLOAD_DIR: /app/storage/uploads
+      # Email via Mailjet
+      EMAIL_PROVIDER: mailjet
+      FROM_EMAIL: no-reply@serviceflow.local
+      MAILJET_API_KEY: ${MAILJET_API_KEY}
+      MAILJET_API_SECRET: ${MAILJET_API_SECRET}
     ports:
       - "8000:8000"
     volumes:
